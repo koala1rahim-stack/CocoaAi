@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CocoaAi</title>
+    <script>
+      window.tailwind = {
+        config: {
+          theme: {
+            extend: {
+              colors: {
+                cocoa: {
+                  DEFAULT: '#3b2f2f',
+                  dark: '#2e2424',
+                  cream: '#f5e9dc'
+                }
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root{--cocoa:#3b2f2f;--cocoa-dark:#2e2424;--cream:#f5e9dc}
+      html,body,#app{height:100%}
+      body{background:linear-gradient(180deg,var(--cocoa-dark),var(--cocoa));color:var(--cream)}
+      .msg-enter{animation:pop 320ms ease forwards}
+      @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.99)}to{opacity:1;transform:none}}
+      .typing-dots span{display:inline-block;width:6px;height:6px;background:var(--cream);border-radius:999px;margin:0 2px;opacity:.4;animation:blink 1s infinite}
+      .typing-dots span:nth-child(2){animation-delay:.15s}
+      .typing-dots span:nth-child(3){animation-delay:.3s}
+      @keyframes blink{0%{opacity:.2}50%{opacity:1}100%{opacity:.2}}
+      .scrollbar-hidden::-webkit-scrollbar{display:none}
+      .logo-cup{filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+    </style>
+  </head>
+  <body>
+    <div id="app" class="min-h-screen flex">
+      <!-- Sidebar -->
+      <aside class="w-80 bg-[rgba(0,0,0,.12)] backdrop-blur-md p-4 hidden md:flex flex-col gap-4">
+        <div class="flex items-center gap-3">
+          <div class="logo-cup p-2 bg-[rgba(255,255,255,.06)] rounded-md">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-cream">
+              <path d="M3 7.5C3 5 4 3 6.5 3h5c2.5 0 3.5 2 3.5 4.5 0 2.5-1 4.5-3.5 4.5H6.5C4 12 3 10 3 7.5z" fill="#f5e9dc" />
+              <path d="M6 15c0 2 2 4 6 4s6-2 6-4" stroke="#e2ccb9" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-semibold">CocoaAi</h1>
+            <p class="text-xs text-[rgba(245,233,220,.8)]">Тёплый AI для ваших идей</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button id="newChatBtn" class="flex-1 bg-[rgba(255,255,255,.06)] hover:bg-[rgba(255,255,255,.09)] py-2 rounded-md">+ Новый чат</button>
+          <button id="clearBtn" class="px-3 bg-transparent border border-[rgba(255,255,255,.06)] rounded-md">Очистить</button>
+        </div>
+
+        <div id="chatsList" class="flex-1 overflow-auto scrollbar-hidden space-y-2"></div>
+        <footer class="text-[12px] text-[rgba(245,233,220,.7)]">Сохраняется локально • 2000 символов лимит</footer>
+      </aside>
+
+      <!-- Main -->
+      <main class="flex-1 flex flex-col">
+        <header class="md:hidden p-3 flex items-center justify-between border-b border-[rgba(255,255,255,.04)]">
+          <div class="flex items-center gap-3">
+            <div class="logo-cup p-1 bg-[rgba(255,255,255,.06)] rounded-md">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 7.5C3 5 4 3 6.5 3h5c2.5 0 3.5 2 3.5 4.5 0 2.5-1 4.5-3.5 4.5H6.5C4 12 3 10 3 7.5z" fill="#f5e9dc" />
+              </svg>
+            </div>
+            <div>
+              <div class="font-semibold">CocoaAi</div>
+              <div class="text-xs text-[rgba(245,233,220,.7)]">Тёплый AI</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="mobileChatsToggle" class="p-2 bg-[rgba(255,255,255,.04)] rounded-md">Чаты</button>
+          </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+          <div id="mobileSidebar" class="md:hidden w-72 absolute z-30 left-0 top-16 bottom-0 bg-[rgba(0,0,0,.5)] p-4 transform -translate-x-full transition-transform duration-300"> 
+            <div class="flex justify-between items-center mb-3">
+              <strong>Чаты</strong>
+              <button id="mobileClose" class="text-sm">Закрыть</button>
+            </div>
+            <div id="mobileChatsList" class="space-y-2 overflow-auto h-[calc(100%-48px)]"></div>
+          </div>
+
+          <section class="flex-1 p-6 md:p-8 flex flex-col">
+            <div id="messages" class="flex-1 overflow-auto scrollbar-hidden space-y-4 py-4"></div>
+
+            <div class="mt-4">
+              <div class="flex items-center gap-3">
+                <textarea id="input" rows="2" maxlength="2000" class="flex-1 resize-none bg-[rgba(0,0,0,.14)] rounded-md p-3 text-[16px] placeholder-[rgba(245,233,220,.6)]" placeholder="Напишите сообщение... (макс 2000 символов)"></textarea>
+                <div class="flex flex-col items-end gap-2">
+                  <div class="text-xs text-[rgba(245,233,220,.7)]" id="charCount">0/2000</div>
+                  <button id="sendBtn" class="bg-[rgba(245,233,220,.12)] px-4 py-2 rounded-md">Отправить</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // --- Simple data layer ---
+      const STORAGE_KEY = 'cocoaai_chats_v1'
+
+      function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+
+      let state = {
+        chats: [],
+        activeChatId: null,
+        streaming: false
+      }
+
+      function save(){localStorage.setItem(STORAGE_KEY, JSON.stringify(state.chats))}
+      function load(){
+        try{const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return; state.chats = JSON.parse(raw) || []}catch(e){state.chats=[]}
+      }
+
+      // --- UI refs ---
+      const chatsList = document.getElementById('chatsList')
+      const mobileChatsList = document.getElementById('mobileChatsList')
+      const messagesEl = document.getElementById('messages')
+      const inputEl = document.getElementById('input')
+      const sendBtn = document.getElementById('sendBtn')
+      const newChatBtn = document.getElementById('newChatBtn')
+      const clearBtn = document.getElementById('clearBtn')
+      const charCount = document.getElementById('charCount')
+      const mobileToggle = document.getElementById('mobileChatsToggle')
+      const mobileSidebar = document.getElementById('mobileSidebar')
+      const mobileClose = document.getElementById('mobileClose')
+
+      // --- Helpers ---
+      function renderChats(){
+        chatsList.innerHTML = ''
+        mobileChatsList.innerHTML = ''
+        for(const c of state.chats){
+          const item = document.createElement('div')
+          item.className = 'p-2 rounded-md hover:bg-[rgba(255,255,255,.03)] cursor-pointer flex justify-between items-center'
+          item.innerHTML = `<div class="truncate">${escapeHtml(c.title||'Новый чат')}</div><div class="text-xs text-[rgba(245,233,220,.6)]">${c.messages.length}</div>`
+          item.onclick = ()=>{openChat(c.id)}
+          chatsList.appendChild(item)
+
+          const mitem = item.cloneNode(true)
+          mitem.onclick = ()=>{openChat(c.id); toggleMobileSidebar(false)}
+          mobileChatsList.appendChild(mitem)
+        }
+      }
+
+      function escapeHtml(s){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+
+      function openChat(id){
+        state.activeChatId = id
+        renderMessages()
+        highlightActive()
+      }
+
+      function highlightActive(){
+        Array.from(chatsList.children).forEach((el,i)=>{
+          const cid = state.chats[i].id
+          el.classList.toggle('bg-[rgba(255,255,255,.04)]', cid===state.activeChatId)
+        })
+      }
+
+      function renderMessages(){
+        messagesEl.innerHTML = ''
+        const chat = state.chats.find(c=>c.id===state.activeChatId)
+        if(!chat) return
+        for(const m of chat.messages){
+          const el = document.createElement('div')
+          el.className = 'msg-enter'
+          if(m.role==='user'){
+            el.innerHTML = `<div class="self-end bg-[rgba(255,255,255,.06)] p-3 rounded-lg max-w-[78%] break-words relative">${formatMessage(m.text)}<button data-copy class="absolute right-1 top-1 text-[12px] opacity-60 hover:opacity-100">📋</button></div>`
+            el.classList.add('flex','justify-end')
+          }else{
+            el.innerHTML = `<div class="self-start bg-[rgba(0,0,0,.18)] p-3 rounded-lg max-w-[78%] break-words relative">${formatMessage(m.text)}<button data-copy class="absolute right-1 top-1 text-[12px] opacity-60 hover:opacity-100">📋</button></div>`
+            el.classList.add('flex','justify-start')
+          }
+          messagesEl.appendChild(el)
+        }
+        // attach copy handlers
+        messagesEl.querySelectorAll('[data-copy]').forEach(btn=>{
+          btn.onclick = (e)=>{const txt = btn.parentElement.innerText.replace('📋','').trim();navigator.clipboard.writeText(txt);btn.innerText='✅';setTimeout(()=>btn.innerText='📋',800)}
+        })
+        messagesEl.scrollTop = messagesEl.scrollHeight
+      }
+
+      function formatMessage(text){
+        // simple replacement to preserve line breaks
+        return escapeHtml(text).replaceAll('\n','<br>')
+      }
+
+      // --- Actions ---
+      newChatBtn.onclick = ()=>{
+        const chat = {id:uid(), title:'Новый чат', messages:[]}
+        state.chats.unshift(chat)
+        save()
+        renderChats()
+        openChat(chat.id)
+      }
+
+      clearBtn.onclick = ()=>{
+        if(!confirm('Очистить все чаты?')) return
+        state.chats = []
+        state.activeChatId = null
+        save()
+        renderChats()
+        renderMessages()
+      }
+
+      sendBtn.onclick = sendMessage
+      inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage()} })
+      inputEl.addEventListener('input', ()=>{charCount.textContent = `${inputEl.value.length}/2000`})
+
+      function sendMessage(){
+        if(state.streaming) return
+        const txt = inputEl.value.trim()
+        if(!txt) return
+        const chat = state.chats.find(c=>c.id===state.activeChatId)
+        if(!chat) {alert('Создайте чат сначала.'); return}
+        chat.messages.push({role:'user', text:txt, id:uid()})
+        save()
+        inputEl.value = ''
+        charCount.textContent = '0/2000'
+        renderMessages()
+        // simulate AI
+        simulateAIReply(chat, txt)
+      }
+
+      function simulateAIReply(chat, prompt){
+        state.streaming = true
+        inputEl.disabled = true
+        sendBtn.disabled = true
+
+        // placeholder AI response generator
+        const replyText = generateReply(prompt)
+        const aiMessage = {role:'assistant', text:'', id:uid()}
+        chat.messages.push(aiMessage)
+        renderMessages()
+
+        // streaming by character chunks
+        let idx = 0
+        const speed = 18 + Math.floor(Math.random()*30) // ms per char
+        const interval = setInterval(()=>{
+          // append chunk
+          const chunkSize = Math.max(1, Math.floor(Math.random()*3))
+          aiMessage.text += replyText.slice(idx, idx+chunkSize)
+          idx += chunkSize
+          renderMessages()
+          messagesEl.scrollTop = messagesEl.scrollHeight
+          if(idx>=replyText.length){
+            clearInterval(interval)
+            state.streaming = false
+            inputEl.disabled = false
+            sendBtn.disabled = false
+            save()
+          }
+        }, speed)
+      }
+
+      function generateReply(prompt){
+        // Simple simulated response: reflect + add suggestions
+        const base = `Понял. Вы написали: "${prompt}". `
+        const extra = 'Вот несколько мыслей, которые могут помочь:\n- Сформулируйте задачу конкретнее.\n- Разбейте на шаги.\n- Попробуйте альтернативное решение, если нужно. '
+        // repeat a bit for length
+        return (base + extra + '\n' + smallThoughts()).slice(0, 1500)
+      }
+
+      function smallThoughts(){
+        const swings = [
+          'Если нужно — могу составить пример кода.',
+          'Могу сократить или расширить ответ по желанию.',
+          'Также могу сгенерировать список действий.'
+        ]
+        return swings[Math.floor(Math.random()*swings.length)]
+      }
+
+      // mobile toggles
+      mobileToggle.onclick = ()=>{ toggleMobileSidebar() }
+      mobileClose.onclick = ()=>{ toggleMobileSidebar(false) }
+      function toggleMobileSidebar(force){
+        if(typeof force==='boolean'){
+          mobileSidebar.style.transform = force ? 'translateX(0)' : 'translateX(-100%)'
+        }else{
+          mobileSidebar.style.transform = mobileSidebar.style.transform.includes('translateX(0)')? 'translateX(-100%)':'translateX(0)'
+        }
+      }
+
+      // init
+      (function init(){
+        load()
+        if(state.chats.length===0){
+          const chat = {id:uid(), title:'Новый чат', messages:[{role:'assistant', text:'Привет! Я CocoaAi — тёплый помощник. С чем помочь?'}]}
+          state.chats.push(chat)
+        }
+        renderChats()
+        openChat(state.chats[0].id)
+      })()
+
+      // small polish: copy full chat button via long-press? (not implemented) 
+    </script>
+  </body>
+</html>
